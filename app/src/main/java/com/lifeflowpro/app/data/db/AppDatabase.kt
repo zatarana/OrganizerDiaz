@@ -15,7 +15,9 @@ import com.lifeflowpro.app.data.db.entities.*
         DebtEntity::class,
         DebtInstallmentEntity::class,
         BudgetEntity::class,
-        GoalEntity::class
+        GoalEntity::class,
+        GamificationEntity::class,
+        AchievementEntity::class
     ],
     version = 1,
     exportSchema = false
@@ -28,4 +30,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun debtDao(): DebtDao
     abstract fun budgetDao(): BudgetDao
     abstract fun goalDao(): GoalDao
+    abstract fun gamificationDao(): GamificationDao
+    abstract fun achievementDao(): AchievementDao
 }

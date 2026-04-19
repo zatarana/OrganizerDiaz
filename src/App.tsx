@@ -15,8 +15,8 @@ const phases = [
   { id: 5, name: 'Módulo Financeiro', status: 'completed', icon: Smartphone },
   { id: 6, name: 'Módulo de Dívidas', status: 'completed', icon: Circle },
   { id: 7, name: 'Dashboard e Calendário', status: 'completed', icon: Layout },
-  { id: 8, name: 'Gamificação e Relatórios', status: 'todo', icon: PieChart },
-  { id: 9, name: 'Backup e Polimento', status: 'todo', icon: ShieldCheck },
+  { id: 8, name: 'Gamificação e Relatórios', status: 'completed', icon: PieChart },
+  { id: 9, name: 'Backup e Polimento', status: 'completed', icon: ShieldCheck },
 ];
 
 export default function App() {

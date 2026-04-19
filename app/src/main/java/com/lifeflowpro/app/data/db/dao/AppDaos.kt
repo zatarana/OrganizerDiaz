@@ -102,3 +102,24 @@ interface GoalDao {
     @Update
     suspend fun updateGoal(goal: GoalEntity)
 }
+
+@Dao
+interface GamificationDao {
+    @Query("SELECT * FROM gamification_stats WHERE id = 1")
+    fun getStats(): Flow<GamificationEntity?>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun updateStats(stats: GamificationEntity)
+}
+
+@Dao
+interface AchievementDao {
+    @Query("SELECT * FROM achievements")
+    fun getAllAchievements(): Flow<List<AchievementEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAchievement(achievement: AchievementEntity)
+
+    @Update
+    suspend fun updateAchievement(achievement: AchievementEntity)
+}

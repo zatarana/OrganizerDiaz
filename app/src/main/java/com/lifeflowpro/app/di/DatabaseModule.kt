@@ -45,4 +45,10 @@ object DatabaseModule {
 
     @Provides
     fun provideGoalDao(db: AppDatabase): GoalDao = db.goalDao()
+
+    @Provides
+    fun provideGamificationDao(db: AppDatabase): GamificationDao = db.gamificationDao()
+
+    @Provides
+    fun provideAchievementDao(db: AppDatabase): AchievementDao = db.achievementDao()
 }

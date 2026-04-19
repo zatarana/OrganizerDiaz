@@ -35,11 +35,9 @@ fun DashboardScreen(viewModel: DashboardViewModel = hiltViewModel()) {
             TopAppBar(
                 title = { Text("Resumo do Dia", fontWeight = FontWeight.Bold) },
                 actions = {
+                    StreakBadge(state.gamification?.current_streak ?: 0)
                     IconButton(onClick = { /* Search */ }) {
                         Icon(Icons.Default.Search, contentDescription = "Pesquisar")
-                    }
-                    IconButton(onClick = { /* Notifications */ }) {
-                        Icon(Icons.Default.Notifications, contentDescription = "Notificações")
                     }
                 }
             )
@@ -53,6 +51,7 @@ fun DashboardScreen(viewModel: DashboardViewModel = hiltViewModel()) {
         ) {
             item {
                 Spacer(modifier = Modifier.height(8.dp))
+                XPProgressBar(state.gamification?.xp ?: 0)
                 FinancialSummaryCard(state)
             }
 
@@ -181,4 +180,34 @@ fun DashboardDebtItem(creditor: String, value: Double) {
 @Composable
 fun EmptyStateMessage(message: String) {
     Text(message, fontSize = 14.sp, color = Color.Gray, modifier = Modifier.padding(vertical = 8.dp))
+}
+
+@Composable
+fun StreakBadge(streak: Int) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(end = 8.dp)
+    ) {
+        Text("🔥", fontSize = 20.sp)
+        Text(streak.toString(), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+    }
+}
+
+@Composable
+fun XPProgressBar(xp: Int) {
+    val level = (xp / 100) + 1
+    val progress = (xp % 100) / 100f
+
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("Nível $level", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text("${xp % 100}/100 XP", fontSize = 12.sp, color = Color.Gray)
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        LinearProgressIndicator(
+            progress = progress,
+            modifier = Modifier.fillMaxWidth().height(8.dp),
+            strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
+        )
+    }
 }

@@ -12,9 +12,12 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+import com.lifeflowpro.app.data.repository.GamificationRepository
+
 @HiltViewModel
 class TaskViewModel @Inject constructor(
     private val repository: TaskRepository,
+    private val gamificationRepository: GamificationRepository,
     private val alarmScheduler: TaskAlarmScheduler
 ) : ViewModel() {
 
@@ -33,6 +36,9 @@ class TaskViewModel @Inject constructor(
             val updatedTask = task.copy(status = "CONCLUIDA")
             repository.update(updatedTask)
             alarmScheduler.cancel(task)
+            
+            // Update Gamification
+            gamificationRepository.processTaskCompletion()
             
             // Handle recurrence logic here if applicable
             if (task.recurrence_type != "NENHUMA") {

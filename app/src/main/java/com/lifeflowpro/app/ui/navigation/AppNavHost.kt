@@ -13,6 +13,8 @@ import com.lifeflowpro.app.ui.screens.finance.FinanceScreen
 import com.lifeflowpro.app.ui.screens.debts.DebtsScreen
 import com.lifeflowpro.app.ui.screens.dashboard.DashboardScreen
 import com.lifeflowpro.app.ui.screens.calendar.CalendarScreen
+import com.lifeflowpro.app.ui.screens.reports.ReportsScreen
+import com.lifeflowpro.app.ui.screens.settings.SettingsScreen
 
 @Composable
 fun AppNavHost(
@@ -30,6 +32,7 @@ fun AppNavHost(
         composable(Screen.Finance.route) { FinanceScreen() }
         composable(Screen.Debts.route) { DebtsScreen() }
         composable(Screen.Calendar.route) { CalendarScreen() }
-        composable(Screen.More.route) { PlaceholderScreen(Screen.More.title) }
+        composable(Screen.Reports.route) { ReportsScreen() }
+        composable(Screen.More.route) { SettingsScreen() }
     }
 }
