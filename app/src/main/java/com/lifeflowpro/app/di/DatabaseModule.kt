@@ -22,7 +22,7 @@ object DatabaseModule {
             context,
             AppDatabase::class.java,
             "lifeflow_pro_db"
-        ).build()
+        ).fallbackToDestructiveMigration().build()
     }
 
     @Provides

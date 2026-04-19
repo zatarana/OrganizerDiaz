@@ -19,7 +19,7 @@ import com.lifeflowpro.app.data.db.entities.*
         GamificationEntity::class,
         AchievementEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
