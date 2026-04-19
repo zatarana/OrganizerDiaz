@@ -75,6 +75,9 @@ interface DebtDao {
     @Query("SELECT * FROM debt_installments WHERE debt_id = :debtId ORDER BY installment_number ASC")
     fun getInstallmentsByDebt(debtId: Long): Flow<List<DebtInstallmentEntity>>
 
+    @Query("SELECT * FROM debt_installments ORDER BY due_date ASC")
+    fun getAllInstallments(): Flow<List<DebtInstallmentEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertInstallment(installment: DebtInstallmentEntity)
 

@@ -39,6 +39,7 @@ class FinanceRepository @Inject constructor(
 @Singleton
 class DebtRepository @Inject constructor(private val debtDao: DebtDao) {
     val allDebts: Flow<List<DebtEntity>> = debtDao.getAllDebts()
+    val allInstallments: Flow<List<DebtInstallmentEntity>> = debtDao.getAllInstallments()
 
     suspend fun insertDebt(debt: DebtEntity) = debtDao.insertDebt(debt)
     suspend fun updateDebt(debt: DebtEntity) = debtDao.updateDebt(debt)

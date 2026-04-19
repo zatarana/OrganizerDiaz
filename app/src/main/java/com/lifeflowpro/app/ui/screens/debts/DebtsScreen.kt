@@ -35,12 +35,29 @@ fun DebtsScreen(viewModel: DebtViewModel = hiltViewModel()) {
             Column(modifier = Modifier.background(MaterialTheme.colorScheme.surface).padding(16.dp)) {
                 Text("Dívidas", fontSize = 24.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
-                val openDebtSum = debts.filter { it.status != "QUITADA" }.sumOf { it.negotiated_value ?: it.original_value }
-                Text(
-                    "Você deve um total de ${NumberFormat.getCurrencyInstance(Locale("pt", "BR")).format(openDebtSum)}",
-                    fontSize = 14.sp,
-                    color = Color.Gray
-                )
+                val currencyFormatter = NumberFormat.getCurrencyInstance(Locale("pt", "BR"))
+                
+                when (selectedTab) {
+                    0, 1 -> {
+                        val openDebtSum = debts.filter { it.status == "EM_ABERTO" || it.status == "EM_PAGAMENTO" }
+                            .sumOf { it.negotiated_value ?: it.original_value }
+                        Text(
+                            "Você tem ${currencyFormatter.format(openDebtSum)} em dívidas em aberto",
+                            fontSize = 14.sp,
+                            color = Color.Gray
+                        )
+                    }
+                    2 -> {
+                        val settled = debts.filter { it.status == "QUITADA" }
+                        val settledSum = settled.sumOf { it.original_value }
+                        val economySum = settled.sumOf { it.total_economy }
+                        Text(
+                            "Você zerou ${currencyFormatter.format(settledSum)} em dívidas e economizou ${currencyFormatter.format(economySum)}",
+                            fontSize = 14.sp,
+                            color = Color(0xFF10B981)
+                        )
+                    }
+                }
             }
         },
         floatingActionButton = {
@@ -57,9 +74,9 @@ fun DebtsScreen(viewModel: DebtViewModel = hiltViewModel()) {
             }
 
             when (selectedTab) {
-                0 -> DebtList(debts.filter { it.status == "EM_ABERTO" }, viewModel, onDebtClick = { selectedDebtForAction = it })
-                1 -> DebtList(debts.filter { it.status == "EM_PAGAMENTO" }, viewModel, onDebtClick = { selectedDebtForAction = it })
-                2 -> DebtList(debts.filter { it.status == "QUITADA" }, viewModel, onDebtClick = { selectedDebtForAction = it })
+                0 -> DebtList(debts.filter { it.status == "EM_ABERTO" }, viewModel.installments.collectAsState().value, viewModel, onDebtClick = { selectedDebtForAction = it })
+                1 -> DebtList(debts.filter { it.status == "EM_PAGAMENTO" }, viewModel.installments.collectAsState().value, viewModel, onDebtClick = { selectedDebtForAction = it })
+                2 -> DebtList(debts.filter { it.status == "QUITADA" }, viewModel.installments.collectAsState().value, viewModel, onDebtClick = { selectedDebtForAction = it })
             }
         }
 
@@ -122,7 +139,12 @@ fun DebtsScreen(viewModel: DebtViewModel = hiltViewModel()) {
 }
 
 @Composable
-fun DebtList(debts: List<DebtEntity>, viewModel: DebtViewModel, onDebtClick: (DebtEntity) -> Unit) {
+fun DebtList(
+    debts: List<DebtEntity>,
+    installments: List<DebtInstallmentEntity>,
+    viewModel: DebtViewModel,
+    onDebtClick: (DebtEntity) -> Unit
+) {
     if (debts.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("Nenhum registro encontrado", color = Color.Gray)
@@ -130,14 +152,15 @@ fun DebtList(debts: List<DebtEntity>, viewModel: DebtViewModel, onDebtClick: (De
     } else {
         LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp)) {
             items(debts) { debt ->
-                DebtItem(debt, onClick = { onDebtClick(debt) })
+                val debtInstallments = installments.filter { it.debt_id == debt.id }
+                DebtItem(debt, debtInstallments, onClick = { onDebtClick(debt) })
             }
         }
     }
 }
 
 @Composable
-fun DebtItem(debt: DebtEntity, onClick: () -> Unit) {
+fun DebtItem(debt: DebtEntity, installments: List<DebtInstallmentEntity>, onClick: () -> Unit) {
     val currencyFormatter = NumberFormat.getCurrencyInstance(Locale("pt", "BR"))
     Card(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
@@ -145,27 +168,50 @@ fun DebtItem(debt: DebtEntity, onClick: () -> Unit) {
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         onClick = onClick
     ) {
-        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(debt.creditor, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Text("Desde ${formatDate(debt.origin_date)}", fontSize = 12.sp, color = Color.Gray)
-            }
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    currencyFormatter.format(debt.negotiated_value ?: debt.original_value),
-                    fontWeight = FontWeight.Bold,
-                    color = if (debt.status == "QUITADA") Color(0xFF10B981) else Color.Black
-                )
-                if (debt.total_economy > 0) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(debt.creditor, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    val daysOpen = ((System.currentTimeMillis() - debt.origin_date) / (1000 * 60 * 60 * 24))
+                    Text("Em aberto há $daysOpen dias (Desde ${formatDate(debt.origin_date)})", fontSize = 12.sp, color = Color.Gray)
+                }
+                Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        "Economia de ${currencyFormatter.format(debt.total_economy)}",
-                        fontSize = 11.sp,
-                        color = Color(0xFF10B981)
+                        currencyFormatter.format(debt.negotiated_value ?: debt.original_value),
+                        fontWeight = FontWeight.Bold,
+                        color = if (debt.status == "QUITADA") Color(0xFF10B981) else Color.Black
                     )
+                    if (debt.total_economy > 0) {
+                        Text(
+                            "Economia de ${currencyFormatter.format(debt.total_economy)}",
+                            fontSize = 11.sp,
+                            color = Color(0xFF10B981)
+                        )
+                    }
                 }
             }
-            IconButton(onClick = { /* Actions */ }) {
-                Icon(Icons.Default.MoreVert, contentDescription = "Mais")
+
+            if (debt.status == "EM_PAGAMENTO" && installments.isNotEmpty()) {
+                val totalInstallments = installments.size
+                val paidInstallments = installments.count { it.status == "PAGO" }
+                val progress = if (totalInstallments > 0) paidInstallments.toFloat() / totalInstallments else 0f
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("Progresso: $paidInstallments/$totalInstallments", fontSize = 12.sp, color = Color.Gray)
+                    
+                    val nextInstallment = installments.firstOrNull { it.status != "PAGO" }
+                    if (nextInstallment != null) {
+                        Text("Próxima parc: ${formatDate(nextInstallment.due_date)}", fontSize = 12.sp, color = Color(0xFFEAB308), fontWeight = FontWeight.Medium)
+                    }
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+                LinearProgressIndicator(
+                    progress = progress,
+                    modifier = Modifier.fillMaxWidth().height(6.dp),
+                    color = Color(0xFF3B82F6),
+                    strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
+                )
             }
         }
     }

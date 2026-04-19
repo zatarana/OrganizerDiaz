@@ -23,6 +23,9 @@ class DebtViewModel @Inject constructor(
     val debts: StateFlow<List<DebtEntity>> = repository.allDebts
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val installments: StateFlow<List<DebtInstallmentEntity>> = repository.allInstallments
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     fun addDebt(debt: DebtEntity) {
         viewModelScope.launch {
             repository.insertDebt(debt)
