@@ -105,7 +105,7 @@ fun DebtItem(debt: DebtEntity) {
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = Modifier.weight(1fr)) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(debt.creditor, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Text("Desde ${formatDate(debt.origin_date)}", fontSize = 12.sp, color = Color.Gray)
             }

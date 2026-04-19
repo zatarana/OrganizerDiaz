@@ -93,7 +93,7 @@ fun TaskItem(task: TaskEntity, onComplete: () -> Unit, onDelete: () -> Unit) {
                 onCheckedChange = { if (it) onComplete() }
             )
             Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1fr)) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = task.title,
                     fontWeight = FontWeight.Bold,

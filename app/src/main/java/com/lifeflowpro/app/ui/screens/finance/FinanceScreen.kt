@@ -131,7 +131,7 @@ fun TransactionItem(tx: TransactionEntity) {
                 Text(if (tx.type == "INCOME") "↓" else "↑", color = if (tx.type == "INCOME") Color(0xFF166534) else Color(0xFF991B1B))
             }
             Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1fr)) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(tx.description ?: "Sem descrição", fontWeight = FontWeight.Medium)
                 Text(tx.status, fontSize = 11.sp, color = Color.Gray)
             }
@@ -176,13 +176,13 @@ fun AddTransactionBottomSheet(onDismiss: () -> Unit, onSave: (TransactionEntity)
                     selected = type == "EXPENSE",
                     onClick = { type = "EXPENSE" },
                     label = { Text("Despesa") },
-                    modifier = Modifier.weight(1fr)
+                    modifier = Modifier.weight(1f)
                 )
                 FilterChip(
                     selected = type == "INCOME",
                     onClick = { type = "INCOME" },
                     label = { Text("Receita") },
-                    modifier = Modifier.weight(1fr)
+                    modifier = Modifier.weight(1f)
                 )
             }
 
