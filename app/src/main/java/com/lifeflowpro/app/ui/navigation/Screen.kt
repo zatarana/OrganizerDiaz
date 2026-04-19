@@ -7,8 +7,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 sealed class Screen(val route: String, val title: String, val icon: ImageVector? = null) {
     object Dashboard : Screen("dashboard", "Início", Icons.Default.Home)
     object Tasks : Screen("tasks", "Tarefas", Icons.Default.CheckCircle)
-    object Finance : Screen("finance", "Finanças", Icons.Default.Wallet)
-    object Debts : Screen("debts", "Dívidas", Icons.Default.ReceiptLong)
+    object Finance : Screen("finance", "Finanças", Icons.Default.AccountBox)
+    object Debts : Screen("debts", "Dívidas", Icons.Default.List)
     object More : Screen("more", "Mais", Icons.Default.Menu)
     
     // Sub-screens

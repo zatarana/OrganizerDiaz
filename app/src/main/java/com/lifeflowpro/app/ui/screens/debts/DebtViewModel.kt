@@ -78,6 +78,7 @@ class DebtViewModel @Inject constructor(
                 repository.insertInstallment(
                     DebtInstallmentEntity(
                         debt_id = debt.id,
+                        transaction_id = null,
                         installment_number = i,
                         expected_value = installmentValue,
                         final_value = null,

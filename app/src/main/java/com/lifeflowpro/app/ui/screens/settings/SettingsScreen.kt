@@ -2,10 +2,9 @@ package com.lifeflowpro.app.ui.screens.settings
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Upload
+import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -49,7 +48,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = androidx.hilt.navigation.compo
             SettingsItem(
                 title = "Exportar Backup JSON",
                 subtitle = "Gera um arquivo com todos os seus dados locais",
-                icon = Icons.Default.Download,
+                icon = Icons.Default.ArrowForward,
                 onClick = { 
                     viewModel.export()
                     showExportDialog = true
@@ -59,7 +58,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = androidx.hilt.navigation.compo
             SettingsItem(
                 title = "Importar Backup",
                 subtitle = "Restaurar dados de um arquivo JSON",
-                icon = Icons.Default.Upload,
+                icon = Icons.Default.ArrowBack,
                 onClick = { /* File picker logic */ }
             )
 
