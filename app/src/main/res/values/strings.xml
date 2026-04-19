@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">LifeFlow Pro</string>
+    <string name="welcome_title">Bem-vindo ao LifeFlow Pro</string>
+    <string name="onboarding_1_desc">Sua produtividade e saúde financeira em um só lugar.</string>
+    <string name="shortcut_new_transaction">Nova Transação</string>
+    <string name="shortcut_new_task">Nova Tarefa</string>
+</resources>

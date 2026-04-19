@@ -1,0 +1,6 @@
+{
+  "name": "LifeFlow Pro",
+  "description": "Aplicativo nativo Android para organização pessoal, finanças e dívidas, construído com Kotlin e Jetpack Compose.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

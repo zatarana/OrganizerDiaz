@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="new_transaction"
+        android:enabled="true"
+        android:icon="@drawable/ic_launcher_foreground"
+        android:shortcutShortLabel="@string/shortcut_new_transaction"
+        android:shortcutLongLabel="@string/shortcut_new_transaction">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.lifeflowpro.app"
+            android:targetClass="com.lifeflowpro.app.MainActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="new_task"
+        android:enabled="true"
+        android:icon="@drawable/ic_launcher_foreground"
+        android:shortcutShortLabel="@string/shortcut_new_task"
+        android:shortcutLongLabel="@string/shortcut_new_task">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.lifeflowpro.app"
+            android:targetClass="com.lifeflowpro.app.MainActivity" />
+    </shortcut>
+</shortcuts>
