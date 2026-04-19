@@ -22,6 +22,7 @@ import com.lifeflowpro.app.data.db.entities.TaskEntity
 fun TasksScreen(viewModel: TaskViewModel = hiltViewModel()) {
     val tasks by viewModel.tasks.collectAsState()
     var showAddSheet by remember { mutableStateOf(false) }
+    var taskToLink by remember { mutableStateOf<TaskEntity?>(null) }
     
     Scaffold(
         topBar = { TopAppBar(title = { Text("Minhas Tarefas") }) },
@@ -41,7 +42,13 @@ fun TasksScreen(viewModel: TaskViewModel = hiltViewModel()) {
                     items(tasks) { task ->
                         TaskItem(
                             task = task,
-                            onComplete = { viewModel.completeTask(task) },
+                            onComplete = { 
+                                if (task.linked_transaction_id == -1L) {
+                                    taskToLink = task
+                                } else {
+                                    viewModel.completeTask(task) 
+                                }
+                            },
                             onDelete = { viewModel.deleteTask(task) }
                         )
                     }
@@ -49,25 +56,28 @@ fun TasksScreen(viewModel: TaskViewModel = hiltViewModel()) {
             }
         }
 
+        if (taskToLink != null) {
+            TaskTransactionDialog(
+                task = taskToLink!!,
+                onDismiss = {
+                    // Complete without creating transaction and unset link flag
+                    viewModel.completeTask(taskToLink!!.copy(linked_transaction_id = null))
+                    taskToLink = null
+                },
+                onConfirm = { value, type ->
+                    // Set task to completed, then create transaction
+                    viewModel.completeTask(taskToLink!!)
+                    viewModel.createLinkedTransaction(taskToLink!!, value, type)
+                    taskToLink = null
+                }
+            )
+        }
+
         if (showAddSheet) {
             AddTaskBottomSheet(
                 onDismiss = { showAddSheet = false },
-                onSave = { title, priority ->
-                    viewModel.addTask(
-                        TaskEntity(
-                            title = title,
-                            description = "",
-                            category_id = null,
-                            status = "PENDENTE",
-                            due_date = System.currentTimeMillis() + 3600000, // 1 hour from now for demo
-                            due_time = null,
-                            recurrence_type = "NENHUMA",
-                            recurrence_config = null,
-                            priority = priority,
-                            parent_task_id = null,
-                            linked_transaction_id = null
-                        )
-                    )
+                onSave = { newTask ->
+                    viewModel.addTask(newTask)
                     showAddSheet = false
                 }
             )
@@ -117,44 +127,151 @@ fun TaskItem(task: TaskEntity, onComplete: () -> Unit, onDelete: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddTaskBottomSheet(onDismiss: () -> Unit, onSave: (String, String) -> Unit) {
+fun AddTaskBottomSheet(onDismiss: () -> Unit, onSave: (TaskEntity) -> Unit) {
     var title by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
     var priority by remember { mutableStateOf("MEDIA") }
+    var recurrence by remember { mutableStateOf("NENHUMA") }
+    var linkTransaction by remember { mutableStateOf(false) }
+    
     val sheetState = rememberModalBottomSheetState()
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState
     ) {
-        Column(modifier = Modifier.padding(24.dp).fillMaxWidth()) {
-            Text("Nova Tarefa", fontWeight = FontWeight.Bold, fontSize = 20.sp)
-            Spacer(modifier = Modifier.height(16.dp))
-            OutlinedTextField(
-                value = title,
-                onValueChange = { title = it },
-                label = { Text("O que precisa ser feito?") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text("Prioridade", fontSize = 14.sp, color = Color.Gray)
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                listOf("BAIXA", "MEDIA", "ALTA").forEach { p ->
-                    FilterChip(
-                        selected = priority == p,
-                        onClick = { priority = p },
-                        label = { Text(p) }
-                    )
+        LazyColumn(modifier = Modifier.padding(horizontal = 24.dp).fillMaxWidth()) {
+            item {
+                Text("Nova Tarefa", fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text("O que precisa ser feito?") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Descrição (opcional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 3
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Prioridade", fontSize = 14.sp, color = Color.Gray)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    listOf("BAIXA", "MEDIA", "ALTA").forEach { p ->
+                        FilterChip(
+                            selected = priority == p,
+                            onClick = { priority = p },
+                            label = { Text(p) }
+                        )
+                    }
                 }
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Recorrência", fontSize = 14.sp, color = Color.Gray)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    listOf("NENHUMA", "DIARIA", "SEMANAL", "MENSAL").forEach { r ->
+                        FilterChip(
+                            selected = recurrence == r,
+                            onClick = { recurrence = r },
+                            label = { Text(r.take(3)) } // Shortened label
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = linkTransaction, onCheckedChange = { linkTransaction = it })
+                    Text("Gerar transação financeira ao concluir")
+                }
+                Spacer(modifier = Modifier.height(24.dp))
+                Button(
+                    onClick = { 
+                        if (title.isNotBlank()) {
+                            onSave(
+                                TaskEntity(
+                                    title = title,
+                                    description = description.takeIf { it.isNotBlank() },
+                                    category_id = null,
+                                    status = "PENDENTE",
+                                    due_date = System.currentTimeMillis() + 3600000, // Demostration: 1hr later
+                                    due_time = null,
+                                    recurrence_type = recurrence,
+                                    recurrence_config = null,
+                                    priority = priority,
+                                    parent_task_id = null,
+                                    linked_transaction_id = if (linkTransaction) -1L else null // -1 indicates intent to create
+                                )
+                            )
+                        } 
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = title.isNotBlank()
+                ) {
+                    Text("Salvar Tarefa")
+                }
+                Spacer(modifier = Modifier.height(50.dp))
             }
-            Spacer(modifier = Modifier.height(24.dp))
-            Button(
-                onClick = { if (title.isNotBlank()) onSave(title, priority) },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = title.isNotBlank()
-            ) {
-                Text("Salvar Tarefa")
-            }
-            Spacer(modifier = Modifier.height(32.dp))
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TaskTransactionDialog(
+    task: TaskEntity,
+    onDismiss: () -> Unit,
+    onConfirm: (Double, String) -> Unit
+) {
+    var valueStr by remember { mutableStateOf("") }
+    var type by remember { mutableStateOf("EXPENSE") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Tarefa Financeira") },
+        text = {
+            Column {
+                Text("Você deseja criar uma transação correspondente para '${task.title}'?")
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = type == "EXPENSE",
+                        onClick = { type = "EXPENSE" },
+                        label = { Text("Despesa") },
+                        modifier = Modifier.weight(1f)
+                    )
+                    FilterChip(
+                        selected = type == "INCOME",
+                        onClick = { type = "INCOME" },
+                        label = { Text("Receita") },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = valueStr,
+                    onValueChange = { valueStr = it },
+                    label = { Text("Valor (R$)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val finalValue = valueStr.toDoubleOrNull() ?: 0.0
+                    onConfirm(finalValue, type)
+                },
+                enabled = valueStr.isNotBlank()
+            ) {
+                Text("Criar e Concluir")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Apenas Concluir") }
+        }
+    )
 }

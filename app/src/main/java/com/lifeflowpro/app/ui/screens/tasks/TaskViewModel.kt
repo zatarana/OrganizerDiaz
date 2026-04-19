@@ -13,11 +13,14 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 import com.lifeflowpro.app.data.repository.GamificationRepository
+import com.lifeflowpro.app.data.repository.FinanceRepository
+import com.lifeflowpro.app.data.db.entities.TransactionEntity
 
 @HiltViewModel
 class TaskViewModel @Inject constructor(
     private val repository: TaskRepository,
     private val gamificationRepository: GamificationRepository,
+    private val financeRepository: FinanceRepository,
     private val alarmScheduler: TaskAlarmScheduler
 ) : ViewModel() {
 
@@ -44,6 +47,27 @@ class TaskViewModel @Inject constructor(
             if (task.recurrence_type != "NENHUMA") {
                 createNextRecurrence(task)
             }
+        }
+    }
+
+    fun createLinkedTransaction(task: TaskEntity, value: Double, type: String) {
+        viewModelScope.launch {
+            val tx = TransactionEntity(
+                type = type, // "EXPENSE" or "INCOME"
+                account_id = 1, // Default main account for now
+                category_id = task.category_id,
+                description = task.title,
+                expected_value = value,
+                final_value = value, // Since it's done together with task
+                expected_date = System.currentTimeMillis(),
+                payment_date = System.currentTimeMillis(),
+                status = if (type == "INCOME") "RECEBIDO" else "PAGO", // Auto-pays since task is completed
+                recurrence_type = "NENHUMA",
+                recurrence_group_id = null
+            )
+            val txId = financeRepository.insertTransaction(tx)
+            // Update the task to reflect it's linked
+            repository.update(task.copy(linked_transaction_id = txId))
         }
     }
 

@@ -26,6 +26,9 @@ fun DebtsScreen(viewModel: DebtViewModel = hiltViewModel()) {
     val debts by viewModel.debts.collectAsState()
     var selectedTab by remember { mutableIntStateOf(0) }
     var showAddDebtSheet by remember { mutableStateOf(false) }
+    var selectedDebtForAction by remember { mutableStateOf<DebtEntity?>(null) }
+    var showSettleDialog by remember { mutableStateOf(false) }
+    var showNegotiateDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -54,10 +57,47 @@ fun DebtsScreen(viewModel: DebtViewModel = hiltViewModel()) {
             }
 
             when (selectedTab) {
-                0 -> DebtList(debts.filter { it.status == "EM_ABERTO" }, viewModel)
-                1 -> DebtList(debts.filter { it.status == "EM_PAGAMENTO" }, viewModel)
-                2 -> DebtList(debts.filter { it.status == "QUITADA" }, viewModel)
+                0 -> DebtList(debts.filter { it.status == "EM_ABERTO" }, viewModel, onDebtClick = { selectedDebtForAction = it })
+                1 -> DebtList(debts.filter { it.status == "EM_PAGAMENTO" }, viewModel, onDebtClick = { selectedDebtForAction = it })
+                2 -> DebtList(debts.filter { it.status == "QUITADA" }, viewModel, onDebtClick = { selectedDebtForAction = it })
             }
+        }
+
+        if (selectedDebtForAction != null && !showSettleDialog && !showNegotiateDialog) {
+            DebtActionBottomSheet(
+                debt = selectedDebtForAction!!,
+                onDismiss = { selectedDebtForAction = null },
+                onSettle = { showSettleDialog = true },
+                onNegotiate = { showNegotiateDialog = true },
+                onDelete = { 
+                    viewModel.deleteDebt(selectedDebtForAction!!) 
+                    selectedDebtForAction = null
+                }
+            )
+        }
+
+        if (showSettleDialog && selectedDebtForAction != null) {
+            SettleDebtDialog(
+                debt = selectedDebtForAction!!,
+                onDismiss = { showSettleDialog = false },
+                onConfirm = { finalVal ->
+                    viewModel.settleIntegral(selectedDebtForAction!!, finalVal, 1L)
+                    showSettleDialog = false
+                    selectedDebtForAction = null
+                }
+            )
+        }
+
+        if (showNegotiateDialog && selectedDebtForAction != null) {
+            NegotiateDebtBottomSheet(
+                debt = selectedDebtForAction!!,
+                onDismiss = { showNegotiateDialog = false },
+                onConfirm = { total, installments ->
+                    viewModel.negotiateDebt(selectedDebtForAction!!, total, installments, System.currentTimeMillis(), 1L)
+                    showNegotiateDialog = false
+                    selectedDebtForAction = null
+                }
+            )
         }
 
         if (showAddDebtSheet) {
@@ -82,7 +122,7 @@ fun DebtsScreen(viewModel: DebtViewModel = hiltViewModel()) {
 }
 
 @Composable
-fun DebtList(debts: List<DebtEntity>, viewModel: DebtViewModel) {
+fun DebtList(debts: List<DebtEntity>, viewModel: DebtViewModel, onDebtClick: (DebtEntity) -> Unit) {
     if (debts.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("Nenhum registro encontrado", color = Color.Gray)
@@ -90,19 +130,20 @@ fun DebtList(debts: List<DebtEntity>, viewModel: DebtViewModel) {
     } else {
         LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp)) {
             items(debts) { debt ->
-                DebtItem(debt)
+                DebtItem(debt, onClick = { onDebtClick(debt) })
             }
         }
     }
 }
 
 @Composable
-fun DebtItem(debt: DebtEntity) {
+fun DebtItem(debt: DebtEntity, onClick: () -> Unit) {
     val currencyFormatter = NumberFormat.getCurrencyInstance(Locale("pt", "BR"))
     Card(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        onClick = onClick
     ) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
@@ -169,6 +210,123 @@ fun AddDebtBottomSheet(onDismiss: () -> Unit, onSave: (String, Double) -> Unit) 
                 enabled = creditor.isNotBlank() && value.isNotBlank()
             ) {
                 Text("Registrar Dívida")
+            }
+            Spacer(modifier = Modifier.height(32.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DebtActionBottomSheet(
+    debt: DebtEntity,
+    onDismiss: () -> Unit,
+    onSettle: () -> Unit,
+    onNegotiate: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState()
+
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(modifier = Modifier.padding(24.dp).fillMaxWidth()) {
+            Text("Opções para: ${debt.creditor}", fontWeight = FontWeight.Bold, fontSize = 20.sp)
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            TextButton(modifier = Modifier.fillMaxWidth(), onClick = onSettle) {
+                Text("Quitar Integral")
+            }
+            TextButton(modifier = Modifier.fillMaxWidth(), onClick = onNegotiate) {
+                Text("Negociar / Parcelar")
+            }
+            TextButton(modifier = Modifier.fillMaxWidth(), onClick = onDelete) {
+                Text("Excluir Registro", color = Color.Red)
+            }
+            Spacer(modifier = Modifier.height(32.dp))
+        }
+    }
+}
+
+@Composable
+fun SettleDebtDialog(
+    debt: DebtEntity,
+    onDismiss: () -> Unit,
+    onConfirm: (Double) -> Unit
+) {
+    var finalValueStr by remember { mutableStateOf(debt.original_value.toString()) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Quitação Integral") },
+        text = {
+            Column {
+                Text("Qual o valor final acordado para quitar a dívida com ${debt.creditor}?")
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = finalValueStr,
+                    onValueChange = { finalValueStr = it },
+                    label = { Text("Valor Final (R$)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val finalValue = finalValueStr.toDoubleOrNull() ?: debt.original_value
+                    onConfirm(finalValue)
+                }
+            ) {
+                Text("Quitar Dívida")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancelar") }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun NegotiateDebtBottomSheet(
+    debt: DebtEntity,
+    onDismiss: () -> Unit,
+    onConfirm: (Double, Int) -> Unit
+) {
+    var totalValueStr by remember { mutableStateOf(debt.original_value.toString()) }
+    var installmentsStr by remember { mutableStateOf("1") }
+    val sheetState = rememberModalBottomSheetState()
+
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(modifier = Modifier.padding(24.dp).fillMaxWidth()) {
+            Text("Negociar Dívida", fontWeight = FontWeight.Bold, fontSize = 20.sp)
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            OutlinedTextField(
+                value = totalValueStr,
+                onValueChange = { totalValueStr = it },
+                label = { Text("Novo Valor Total (R$)") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            OutlinedTextField(
+                value = installmentsStr,
+                onValueChange = { installmentsStr = it },
+                label = { Text("Número de Parcelas") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            Button(
+                onClick = {
+                    val total = totalValueStr.toDoubleOrNull() ?: debt.original_value
+                    val installments = installmentsStr.toIntOrNull()?.coerceAtLeast(1) ?: 1
+                    onConfirm(total, installments)
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Confirmar Negociação")
             }
             Spacer(modifier = Modifier.height(32.dp))
         }

@@ -4,18 +4,23 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.lifeflowpro.app.data.db.entities.TransactionEntity
+import com.lifeflowpro.app.data.db.entities.BudgetEntity
+import com.lifeflowpro.app.data.db.entities.CategoryEntity
 import java.text.NumberFormat
 import java.util.*
 
@@ -24,8 +29,12 @@ import java.util.*
 fun FinanceScreen(viewModel: FinanceViewModel = hiltViewModel()) {
     val summary by viewModel.financialSummary.collectAsState()
     val transactions by viewModel.transactions.collectAsState()
+    val budgets by viewModel.budgets.collectAsState()
+    val categories by viewModel.categories.collectAsState()
+    
     var selectedTab by remember { mutableIntStateOf(0) }
     var showAddTxSheet by remember { mutableStateOf(false) }
+    var selectedTxForConfirmation by remember { mutableStateOf<TransactionEntity?>(null) }
 
     Scaffold(
         topBar = {
@@ -52,12 +61,30 @@ fun FinanceScreen(viewModel: FinanceViewModel = hiltViewModel()) {
             }
 
             when (selectedTab) {
-                0 -> TransactionList(transactions)
-                1 -> BudgetList()
+                0 -> TransactionList(
+                    transactions = transactions,
+                    onTransactionClick = { tx -> 
+                        if (tx.status == "A_PAGAR" || tx.status == "A_RECEBER") {
+                            selectedTxForConfirmation = tx 
+                        }
+                    }
+                )
+                1 -> BudgetList(budgets, transactions, categories)
                 2 -> GoalList()
             }
         }
         
+        if (selectedTxForConfirmation != null) {
+            PaymentConfirmationDialog(
+                transaction = selectedTxForConfirmation!!,
+                onDismiss = { selectedTxForConfirmation = null },
+                onConfirm = { tx, finalValue ->
+                    viewModel.confirmPayment(tx, finalValue, System.currentTimeMillis())
+                    selectedTxForConfirmation = null
+                }
+            )
+        }
+
         if (showAddTxSheet) {
             AddTransactionBottomSheet(
                 onDismiss = { showAddTxSheet = false },
@@ -96,7 +123,7 @@ fun BalanceHeader(realBalance: Double, predictedBalance: Double) {
 }
 
 @Composable
-fun TransactionList(transactions: List<TransactionEntity>) {
+fun TransactionList(transactions: List<TransactionEntity>, onTransactionClick: (TransactionEntity) -> Unit) {
     if (transactions.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("Nenhuma transação este mês", color = Color.Gray)
@@ -104,16 +131,17 @@ fun TransactionList(transactions: List<TransactionEntity>) {
     } else {
         LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp)) {
             items(transactions) { tx ->
-                TransactionItem(tx)
+                TransactionItem(tx, onClick = { onTransactionClick(tx) })
             }
         }
     }
 }
 
 @Composable
-fun TransactionItem(tx: TransactionEntity) {
+fun TransactionItem(tx: TransactionEntity, onClick: () -> Unit) {
     val currencyFormatter = NumberFormat.getCurrencyInstance(Locale("pt", "BR"))
     Card(
+        onClick = onClick,
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
@@ -145,9 +173,62 @@ fun TransactionItem(tx: TransactionEntity) {
 }
 
 @Composable
-fun BudgetList() {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("Gerenciamento de Orçamentos em breve")
+fun BudgetList(budgets: List<BudgetEntity>, transactions: List<TransactionEntity>, categories: List<CategoryEntity>) {
+    if (budgets.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("Nenhum orçamento configurado", color = Color.Gray)
+        }
+    } else {
+        val currencyFormatter = NumberFormat.getCurrencyInstance(Locale("pt", "BR"))
+        LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+            items(budgets) { budget ->
+                val category = categories.find { it.id == budget.category_id }
+                // Calculate spent this month for this category
+                // For MVP, we sum all expenses matching the category
+                val spent = transactions
+                    .filter { it.type == "EXPENSE" && it.category_id == budget.category_id && it.status == "PAGO" }
+                    .sumOf { it.final_value ?: it.expected_value }
+                
+                val progress = if (budget.planned_value > 0) (spent / budget.planned_value).toFloat().coerceIn(0f, 1f) else 1f
+                val progressColor = when {
+                    progress >= 1f -> Color.Red
+                    progress >= 0.7f -> Color(0xFFEAB308) // Yellow
+                    else -> Color(0xFF10B981) // Green
+                }
+
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(category?.name ?: "Categoria Geral", fontWeight = FontWeight.Medium)
+                            Text(
+                                text = "${currencyFormatter.format(spent)} / ${currencyFormatter.format(budget.planned_value)}",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LinearProgressIndicator(
+                            progress = progress,
+                            modifier = Modifier.fillMaxWidth().height(8.dp),
+                            color = progressColor,
+                            strokeCap = StrokeCap.Round
+                        )
+                        if (progress >= 1f) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Warning, contentDescription = null, tint = Color.Red, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Orçamento excedido!", color = Color.Red, fontSize = 12.sp)
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -227,4 +308,46 @@ fun AddTransactionBottomSheet(onDismiss: () -> Unit, onSave: (TransactionEntity)
             Spacer(modifier = Modifier.height(32.dp))
         }
     }
+}
+
+@Composable
+fun PaymentConfirmationDialog(
+    transaction: TransactionEntity,
+    onDismiss: () -> Unit,
+    onConfirm: (TransactionEntity, Double) -> Unit
+) {
+    var finalValueStr by remember { mutableStateOf(transaction.expected_value.toString()) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (transaction.type == "INCOME") "Confirmar Recebimento" else "Confirmar Pagamento") },
+        text = {
+            Column {
+                Text("Qual o valor final pago/recebido para: ${transaction.description ?: ""}? (Se houve juros/multa, ajuste o valor abaixo)")
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = finalValueStr,
+                    onValueChange = { finalValueStr = it },
+                    label = { Text("Valor Final (R$)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val finalValue = finalValueStr.toDoubleOrNull() ?: transaction.expected_value
+                    onConfirm(transaction, finalValue)
+                }
+            ) {
+                Text("Confirmar")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
 }
