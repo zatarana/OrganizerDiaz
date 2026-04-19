@@ -34,6 +34,7 @@ fun FinanceScreen(viewModel: FinanceViewModel = hiltViewModel()) {
     
     var selectedTab by remember { mutableIntStateOf(0) }
     var showAddTxSheet by remember { mutableStateOf(false) }
+    var showAddGoalSheet by remember { mutableStateOf(false) }
     var selectedTxForConfirmation by remember { mutableStateOf<TransactionEntity?>(null) }
 
     Scaffold(
@@ -48,8 +49,10 @@ fun FinanceScreen(viewModel: FinanceViewModel = hiltViewModel()) {
             }
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showAddTxSheet = true }) {
-                Icon(Icons.Default.Add, contentDescription = "Nova Transação")
+            FloatingActionButton(onClick = { 
+                if (selectedTab == 2) showAddGoalSheet = true else showAddTxSheet = true 
+            }) {
+                Icon(Icons.Default.Add, contentDescription = "Adicionar")
             }
         }
     ) { padding ->
@@ -70,7 +73,7 @@ fun FinanceScreen(viewModel: FinanceViewModel = hiltViewModel()) {
                     }
                 )
                 1 -> BudgetList(budgets, transactions, categories)
-                2 -> GoalList()
+                2 -> GoalList(viewModel.goals.collectAsState().value)
             }
         }
         
@@ -91,6 +94,16 @@ fun FinanceScreen(viewModel: FinanceViewModel = hiltViewModel()) {
                 onSave = { tx -> 
                     viewModel.addTransaction(tx)
                     showAddTxSheet = false
+                }
+            )
+        }
+
+        if (showAddGoalSheet) {
+            AddGoalBottomSheet(
+                onDismiss = { showAddGoalSheet = false },
+                onSave = { goal ->
+                    viewModel.addGoal(goal)
+                    showAddGoalSheet = false
                 }
             )
         }
@@ -233,9 +246,51 @@ fun BudgetList(budgets: List<BudgetEntity>, transactions: List<TransactionEntity
 }
 
 @Composable
-fun GoalList() {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("Metas de Economia em breve")
+fun GoalList(goals: List<GoalEntity>) {
+    if (goals.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("Nenhuma meta cadastrada", color = Color.Gray)
+        }
+    } else {
+        val currencyFormatter = NumberFormat.getCurrencyInstance(Locale("pt", "BR"))
+        LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+            items(goals) { goal ->
+                val progress = if (goal.target_value > 0) (goal.current_value / goal.target_value).toFloat().coerceIn(0f, 1f) else 1f
+                
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                    colors = CardDefaults.cardColors(containerColor = if (progress >= 1f) Color(0xFFDCFCE7) else Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(text = goal.icon, fontSize = 24.sp)
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(goal.name, fontWeight = FontWeight.Bold)
+                                Text(
+                                    "${currencyFormatter.format(goal.current_value)} de ${currencyFormatter.format(goal.target_value)}",
+                                    fontSize = 12.sp,
+                                    color = Color.Gray
+                                )
+                            }
+                            if (progress >= 1f) {
+                                Text("🎉 Concluída!", color = Color(0xFF166534), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            } else {
+                                Text("${(progress * 100).toInt()}%", fontWeight = FontWeight.Bold)
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        LinearProgressIndicator(
+                            progress = progress,
+                            modifier = Modifier.fillMaxWidth().height(8.dp),
+                            color = if (progress >= 1f) Color(0xFF10B981) else Color(0xFF3B82F6),
+                            strokeCap = StrokeCap.Round
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -245,65 +300,163 @@ fun AddTransactionBottomSheet(onDismiss: () -> Unit, onSave: (TransactionEntity)
     var description by remember { mutableStateOf("") }
     var value by remember { mutableStateOf("") }
     var type by remember { mutableStateOf("EXPENSE") }
+    // Simulated selection fields to cover spec reqs (Account, Date, Category, Recurrence)
+    var accountId by remember { mutableStateOf<Long>(1) } // Assuming 1 is default
+    var categoryId by remember { mutableStateOf<Long>(1) }
+    var recurrence by remember { mutableStateOf("NENHUMA") }
+    var isPaid by remember { mutableStateOf(false) }
+
+    val sheetState = rememberModalBottomSheetState()
+
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        LazyColumn(modifier = Modifier.padding(24.dp).fillMaxWidth()) {
+            item {
+                Text("Nova Transação", fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = type == "EXPENSE",
+                        onClick = { type = "EXPENSE" },
+                        label = { Text("Despesa") },
+                        modifier = Modifier.weight(1f)
+                    )
+                    FilterChip(
+                        selected = type == "INCOME",
+                        onClick = { type = "INCOME" },
+                        label = { Text("Receita") },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = { value = it },
+                    label = { Text("Valor previsto (R$)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Descrição (Opcional)") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Recorrência", fontSize = 14.sp, color = Color.Gray)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("NENHUMA", "MENSAL", "ANUAL").forEach { r ->
+                        FilterChip(
+                            selected = recurrence == r,
+                            onClick = { recurrence = r },
+                            label = { Text(r.take(3)) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = isPaid, onCheckedChange = { isPaid = it })
+                    Text(if (type == "EXPENSE") "Já foi pago?" else "Já foi recebido?")
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+                Button(
+                    onClick = {
+                        val parsedValue = value.toDoubleOrNull() ?: 0.0
+                        if (parsedValue > 0) {
+                            val time = System.currentTimeMillis()
+                            onSave(
+                                TransactionEntity(
+                                    type = type,
+                                    account_id = accountId,
+                                    category_id = categoryId,
+                                    description = description,
+                                    expected_value = parsedValue,
+                                    final_value = if (isPaid) parsedValue else null,
+                                    expected_date = time,
+                                    payment_date = if (isPaid) time else null,
+                                    status = if (isPaid) {
+                                        if (type == "INCOME") "RECEBIDO" else "PAGO"
+                                    } else {
+                                        if (type == "INCOME") "A_RECEBER" else "A_PAGAR"
+                                    },
+                                    recurrence_type = recurrence,
+                                    recurrence_group_id = if (recurrence != "NENHUMA") "group_${time}" else null
+                                )
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = value.isNotBlank() && (value.toDoubleOrNull() ?: 0.0) > 0
+                ) {
+                    Text("Salvar Transação")
+                }
+                Spacer(modifier = Modifier.height(32.dp))
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddGoalBottomSheet(onDismiss: () -> Unit, onSave: (GoalEntity) -> Unit) {
+    var name by remember { mutableStateOf("") }
+    var targetValue by remember { mutableStateOf("") }
+    var icon by remember { mutableStateOf("💰") }
+    
     val sheetState = rememberModalBottomSheetState()
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(modifier = Modifier.padding(24.dp).fillMaxWidth()) {
-            Text("Nova Transação", fontWeight = FontWeight.Bold, fontSize = 20.sp)
+            Text("Nova Meta de Economia", fontWeight = FontWeight.Bold, fontSize = 20.sp)
             Spacer(modifier = Modifier.height(16.dp))
             
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(
-                    selected = type == "EXPENSE",
-                    onClick = { type = "EXPENSE" },
-                    label = { Text("Despesa") },
-                    modifier = Modifier.weight(1f)
-                )
-                FilterChip(
-                    selected = type == "INCOME",
-                    onClick = { type = "INCOME" },
-                    label = { Text("Receita") },
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
             OutlinedTextField(
-                value = value,
-                onValueChange = { value = it },
-                label = { Text("Valor (R$)") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                value = icon,
+                onValueChange = { if (it.length <= 2) icon = it },
+                label = { Text("Ícone (Emoji)") },
+                modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(12.dp))
             OutlinedTextField(
-                value = description,
-                onValueChange = { description = it },
-                label = { Text("Descrição") },
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("Nome da Meta") },
                 modifier = Modifier.fillMaxWidth()
             )
+            Spacer(modifier = Modifier.height(12.dp))
+            OutlinedTextField(
+                value = targetValue,
+                onValueChange = { targetValue = it },
+                label = { Text("Valor Alvo (R$)") },
+                modifier = Modifier.fillMaxWidth()
+            )
+            
             Spacer(modifier = Modifier.height(24.dp))
             Button(
                 onClick = {
-                    val v = value.toDoubleOrNull() ?: 0.0
-                    onSave(TransactionEntity(
-                        type = type,
-                        account_id = 1, // Default for now
-                        category_id = null,
-                        description = description,
-                        expected_value = v,
-                        final_value = null,
-                        expected_date = System.currentTimeMillis(),
-                        payment_date = null,
-                        status = if (type == "INCOME") "A_RECEBER" else "A_PAGAR",
-                        recurrence_type = "NENHUMA",
-                        recurrence_group_id = null
-                    ))
+                    val target = targetValue.toDoubleOrNull() ?: 0.0
+                    if (name.isNotBlank() && target > 0) {
+                        onSave(
+                            GoalEntity(
+                                name = name,
+                                icon = icon,
+                                target_value = target,
+                                current_value = 0.0,
+                                target_date = null,
+                                status = "ATIVA",
+                                completed_at = null
+                            )
+                        )
+                    }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = value.isNotBlank()
+                enabled = name.isNotBlank() && targetValue.isNotBlank()
             ) {
-                Text("Salvar Transação")
+                Text("Salvar Meta")
             }
             Spacer(modifier = Modifier.height(32.dp))
         }

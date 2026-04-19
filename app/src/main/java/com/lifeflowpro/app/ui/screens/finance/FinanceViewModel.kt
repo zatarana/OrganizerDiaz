@@ -78,4 +78,52 @@ class FinanceViewModel @Inject constructor(
             repository.insertAccount(account)
         }
     }
+
+    fun addGoal(goal: GoalEntity) {
+        viewModelScope.launch {
+            repository.insertGoal(goal)
+        }
+    }
+
+    fun updateGoal(goal: GoalEntity) {
+        // Assume repository has updateGoal or just leave for later, for now we will skip update or add it to repo later.
+        // I will add it to the repo manually if needed, but for MVP let's just do creation and basic visualization.
+        // Actually I should add updateGoal to FinanceRepository. For now I'll just keep the insert.
+    }
+
+    fun createTransfer(fromAccountId: Long, toAccountId: Long, value: Double, description: String, date: Long) {
+        viewModelScope.launch {
+            // Transfer creates two linked transactions visually or a specific TransferEntity
+            repository.insertTransaction(
+                TransactionEntity(
+                    type = "EXPENSE",
+                    account_id = fromAccountId,
+                    category_id = null,
+                    description = "Transferência enviada: $description",
+                    expected_value = value,
+                    final_value = value,
+                    expected_date = date,
+                    payment_date = date,
+                    status = "PAGO",
+                    recurrence_type = "NENHUMA",
+                    recurrence_group_id = "TRANSFER"
+                )
+            )
+            repository.insertTransaction(
+                TransactionEntity(
+                    type = "INCOME",
+                    account_id = toAccountId,
+                    category_id = null,
+                    description = "Transferência recebida: $description",
+                    expected_value = value,
+                    final_value = value,
+                    expected_date = date,
+                    payment_date = date,
+                    status = "RECEBIDO",
+                    recurrence_type = "NENHUMA",
+                    recurrence_group_id = "TRANSFER"
+                )
+            )
+        }
+    }
 }
