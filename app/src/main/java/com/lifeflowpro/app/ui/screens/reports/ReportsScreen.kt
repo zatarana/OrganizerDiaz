@@ -148,7 +148,7 @@ fun BudgetReportView(budgets: List<BudgetReportItem>) {
     }
 
     budgets.forEach { item ->
-        val limit = item.budget.limitAmount
+        val limit = item.budget.planned_value
         val spent = item.spent
         val percentage = if (limit > 0) (spent / limit) * 100 else 0.0
         val isOver = percentage > 100

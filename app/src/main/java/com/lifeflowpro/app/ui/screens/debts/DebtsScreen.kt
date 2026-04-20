@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.lifeflowpro.app.data.db.entities.DebtEntity
+import com.lifeflowpro.app.data.db.entities.DebtInstallmentEntity
 import java.text.NumberFormat
 import java.util.*
 

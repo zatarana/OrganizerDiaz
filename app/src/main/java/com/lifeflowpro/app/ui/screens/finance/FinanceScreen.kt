@@ -21,6 +21,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.lifeflowpro.app.data.db.entities.TransactionEntity
 import com.lifeflowpro.app.data.db.entities.BudgetEntity
 import com.lifeflowpro.app.data.db.entities.CategoryEntity
+import com.lifeflowpro.app.data.db.entities.GoalEntity
 import java.text.NumberFormat
 import java.util.*
 

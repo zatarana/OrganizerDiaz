@@ -113,12 +113,12 @@ class ReportsViewModel @Inject constructor(
     ) { budgets, txs, cats ->
         budgets.map { budget ->
             val spent = txs.filter { 
-                it.category_id == budget.categoryId && 
+                it.category_id == budget.category_id && 
                 it.type == "EXPENSE" && 
                 it.status == "PAGO" 
             }.sumOf { it.final_value ?: it.expected_value }
             
-            val catName = cats.find { it.id == budget.categoryId }?.name ?: "Categoria"
+            val catName = cats.find { it.id == budget.category_id }?.name ?: "Categoria"
             BudgetReportItem(budget, spent, catName)
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())

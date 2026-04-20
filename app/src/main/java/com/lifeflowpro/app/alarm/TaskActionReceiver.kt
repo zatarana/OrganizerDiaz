@@ -29,7 +29,7 @@ class TaskActionReceiver : BroadcastReceiver() {
                 CoroutineScope(Dispatchers.IO).launch {
                     val task = repository.allTasks.first().find { it.id == taskId }
                     if (task != null) {
-                        repository.update(task.copy(status = "CONCLUIDA", completed_at = System.currentTimeMillis()))
+                        repository.update(task.copy(status = "CONCLUIDA"))
                     }
                 }
             }

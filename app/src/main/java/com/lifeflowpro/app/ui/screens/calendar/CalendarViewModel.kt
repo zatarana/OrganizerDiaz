@@ -82,7 +82,7 @@ class CalendarViewModel @Inject constructor(
                     title = "Parcela ${inst.installment_number}",
                     date = inst.due_date,
                     type = EventType.DEBT_INSTALLMENT,
-                    value = inst.planned_value,
+                    value = inst.expected_value,
                     originalInstallment = inst
                 )
             )

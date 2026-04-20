@@ -26,7 +26,7 @@ class FinanceRepository @Inject constructor(
     val allBudgets: Flow<List<BudgetEntity>> = budgetDao.getAllBudgets()
     val allGoals: Flow<List<GoalEntity>> = goalDao.getAllGoals()
 
-    suspend fun insertTransaction(transaction: TransactionEntity) = transactionDao.insertTransaction(transaction)
+    suspend fun insertTransaction(transaction: TransactionEntity): Long = transactionDao.insertTransaction(transaction)
     suspend fun updateTransaction(transaction: TransactionEntity) = transactionDao.updateTransaction(transaction)
     
     suspend fun insertAccount(account: AccountEntity) = accountDao.insertAccount(account)

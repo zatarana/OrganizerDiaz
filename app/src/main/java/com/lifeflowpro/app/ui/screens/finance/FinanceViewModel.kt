@@ -24,12 +24,12 @@ class FinanceViewModel @Inject constructor(
             combine(repository.allBudgets, repository.allTransactions) { budgets, txs ->
                 budgets.forEach { budget ->
                     val spent = txs.filter { 
-                        it.category_id == budget.categoryId && 
+                        it.category_id == budget.category_id && 
                         it.type == "EXPENSE" && 
                         it.status == "PAGO" 
                     }.sumOf { it.final_value ?: it.expected_value }
                     
-                    val percentage = if (budget.limitAmount > 0) spent / budget.limitAmount else 0.0
+                    val percentage = if (budget.planned_value > 0) spent / budget.planned_value else 0.0
                     
                     if (percentage >= 1.0) {
                         com.lifeflowpro.app.worker.NotificationHelper.showNotification(
@@ -56,7 +56,7 @@ class FinanceViewModel @Inject constructor(
         viewModelScope.launch {
             repository.allGoals.collect { goals ->
                 goals.forEach { goal ->
-                    if (goal.currentAmount >= goal.targetAmount && goal.status != "CONCLUIDA") {
+                    if (goal.current_value >= goal.target_value && goal.status != "CONCLUIDA") {
                         com.lifeflowpro.app.worker.NotificationHelper.showNotification(
                             context = context,
                             channelId = com.lifeflowpro.app.worker.NotificationHelper.CHANNEL_GOALS,
