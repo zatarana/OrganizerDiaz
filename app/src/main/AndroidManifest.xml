@@ -36,6 +36,15 @@
             android:exported="false" />
 
         <receiver
+            android:name=".alarm.TaskActionReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="COMPLETE_TASK" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
             android:name=".alarm.BootReceiver"
             android:enabled="true"
             android:exported="false">

@@ -14,8 +14,62 @@ import javax.inject.Inject
 @HiltViewModel
 class FinanceViewModel @Inject constructor(
     private val repository: FinanceRepository,
-    private val categoryRepository: CategoryRepository
+    private val categoryRepository: CategoryRepository,
+    @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context
 ) : ViewModel() {
+
+    init {
+        // Reactive Flow Trigger for Budgets
+        viewModelScope.launch {
+            combine(repository.allBudgets, repository.allTransactions) { budgets, txs ->
+                budgets.forEach { budget ->
+                    val spent = txs.filter { 
+                        it.category_id == budget.categoryId && 
+                        it.type == "EXPENSE" && 
+                        it.status == "PAGO" 
+                    }.sumOf { it.final_value ?: it.expected_value }
+                    
+                    val percentage = if (budget.limitAmount > 0) spent / budget.limitAmount else 0.0
+                    
+                    if (percentage >= 1.0) {
+                        com.lifeflowpro.app.worker.NotificationHelper.showNotification(
+                            context = context,
+                            channelId = com.lifeflowpro.app.worker.NotificationHelper.CHANNEL_FINANCE,
+                            notificationId = budget.id.toInt() * 1000,
+                            title = "Orçamento Estourado!",
+                            message = "Você extrapolou o limite para o orçamento.",
+                        )
+                    } else if (percentage >= 0.8) {
+                        com.lifeflowpro.app.worker.NotificationHelper.showNotification(
+                            context = context,
+                            channelId = com.lifeflowpro.app.worker.NotificationHelper.CHANNEL_FINANCE,
+                            notificationId = budget.id.toInt() * 1000 + 1,
+                            title = "Orçamento em Risco",
+                            message = "Você já consumiu ${(percentage * 100).toInt()}% do orçamento.",
+                        )
+                    }
+                }
+            }.collect()
+        }
+        
+        // Reactive Flow for Goals
+        viewModelScope.launch {
+            repository.allGoals.collect { goals ->
+                goals.forEach { goal ->
+                    if (goal.currentAmount >= goal.targetAmount && goal.status != "CONCLUIDA") {
+                        com.lifeflowpro.app.worker.NotificationHelper.showNotification(
+                            context = context,
+                            channelId = com.lifeflowpro.app.worker.NotificationHelper.CHANNEL_GOALS,
+                            notificationId = goal.id.toInt() * 2000,
+                            title = "Meta Atingida! 🎉",
+                            message = "Parabéns! Você alcançou a meta: ${goal.name}",
+                        )
+                        // Note: Auto-update status would happen here, but requires dao update method
+                    }
+                }
+            }
+        }
+    }
 
     val accounts: StateFlow<List<AccountEntity>> = repository.allAccounts
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())

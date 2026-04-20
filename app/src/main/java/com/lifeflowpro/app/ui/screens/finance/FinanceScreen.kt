@@ -81,8 +81,8 @@ fun FinanceScreen(viewModel: FinanceViewModel = hiltViewModel()) {
             PaymentConfirmationDialog(
                 transaction = selectedTxForConfirmation!!,
                 onDismiss = { selectedTxForConfirmation = null },
-                onConfirm = { tx, finalValue ->
-                    viewModel.confirmPayment(tx, finalValue, System.currentTimeMillis())
+                onConfirm = { tx, finalValue, dateLong ->
+                    viewModel.confirmPayment(tx, finalValue, dateLong)
                     selectedTxForConfirmation = null
                 }
             )
@@ -467,9 +467,13 @@ fun AddGoalBottomSheet(onDismiss: () -> Unit, onSave: (GoalEntity) -> Unit) {
 fun PaymentConfirmationDialog(
     transaction: TransactionEntity,
     onDismiss: () -> Unit,
-    onConfirm: (TransactionEntity, Double) -> Unit
+    onConfirm: (TransactionEntity, Double, Long) -> Unit
 ) {
     var finalValueStr by remember { mutableStateOf(transaction.expected_value.toString()) }
+    
+    // Convert today to string for preset
+    val sdf = java.text.SimpleDateFormat("dd/MM/yyyy", Locale("pt", "BR"))
+    var dateStr by remember { mutableStateOf(sdf.format(Date(System.currentTimeMillis()))) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -482,6 +486,16 @@ fun PaymentConfirmationDialog(
                     value = finalValueStr,
                     onValueChange = { finalValueStr = it },
                     label = { Text("Valor Final (R$)") },
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = dateStr,
+                    onValueChange = { dateStr = it },
+                    label = { Text("Data de Conclusão (DD/MM/AAAA)") },
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -491,7 +505,16 @@ fun PaymentConfirmationDialog(
             Button(
                 onClick = {
                     val finalValue = finalValueStr.toDoubleOrNull() ?: transaction.expected_value
-                    onConfirm(transaction, finalValue)
+                    
+                    var dateLong = System.currentTimeMillis()
+                    try {
+                        val parsed = sdf.parse(dateStr)
+                        if (parsed != null) dateLong = parsed.time
+                    } catch (e: Exception) {
+                        // ignore and use today
+                    }
+                    
+                    onConfirm(transaction, finalValue, dateLong)
                 }
             ) {
                 Text("Confirmar")

@@ -31,8 +31,8 @@ fun AppNavHost(
         composable(Screen.Tasks.route) { TasksScreen() }
         composable(Screen.Finance.route) { FinanceScreen() }
         composable(Screen.Debts.route) { DebtsScreen() }
-        composable(Screen.Calendar.route) { CalendarScreen() }
+        composable(Screen.Calendar.route) { CalendarScreen(navController = navController) }
         composable(Screen.Reports.route) { ReportsScreen() }
-        composable(Screen.More.route) { SettingsScreen() }
+        composable(Screen.More.route) { SettingsScreen(navController = navController) }
     }
 }

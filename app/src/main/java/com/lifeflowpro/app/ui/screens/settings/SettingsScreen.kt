@@ -35,13 +35,24 @@ class SettingsViewModel @Inject constructor(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(viewModel: SettingsViewModel = androidx.hilt.navigation.compose.hiltViewModel()) {
+fun SettingsScreen(viewModel: SettingsViewModel = androidx.hilt.navigation.compose.hiltViewModel(), navController: androidx.navigation.NavHostController? = null) {
     var showExportDialog by remember { mutableStateOf(false) }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Configurações") }) }
+        topBar = { TopAppBar(title = { Text("Menu Mais") }) }
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize().padding(16.dp)) {
+            Text("Módulos", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            SettingsItem(
+                title = "Calendário Integrado",
+                subtitle = "Visão geral de seus vencimentos",
+                icon = androidx.compose.material.icons.Icons.Default.DateRange,
+                onClick = { navController?.navigate("calendar") }
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
             Text("Dados e Backup", fontWeight = FontWeight.Bold, fontSize = 18.sp)
             Spacer(modifier = Modifier.height(16.dp))
             

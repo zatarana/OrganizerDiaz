@@ -18,10 +18,24 @@ class OverdueTaskWorker(
         val tasks = repository.allTasks.first()
         val currentTime = System.currentTimeMillis()
 
+        var overdueCount = 0
         tasks.forEach { task ->
             if (task.status == "PENDENTE" && task.due_date != null && task.due_date < currentTime) {
                 repository.update(task.copy(status = "ATRASADA"))
+                overdueCount++
             }
+        }
+
+        if (overdueCount > 0) {
+            NotificationHelper.showNotification(
+                context = applicationContext,
+                channelId = NotificationHelper.CHANNEL_TASKS,
+                notificationId = 1001,
+                title = "Tarefas Atrasadas",
+                message = "Você tem $overdueCount tarefa(s) atrasada(s).",
+                actionIntent = null,
+                actionTitle = null
+            )
         }
 
         return Result.success()

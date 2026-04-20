@@ -11,6 +11,7 @@ class LifeFlowApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        com.lifeflowpro.app.worker.NotificationHelper.createChannels(this)
         dbInitializer.initialize()
     }
 }
